@@ -30,6 +30,8 @@ def process_entire_folder(input_folder, output_base_dir, max_frames_per_video=5)
             continue
             
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        if total_frames <= 0:
+            total_frames = 100  # Fallback fallback for stream web videos
         step = max(1, total_frames // max_frames_per_video)
         
         frame_count = 0
@@ -66,5 +68,8 @@ def process_entire_folder(input_folder, output_base_dir, max_frames_per_video=5)
         print(f"✅ Extracted {saved_count} face patch(es) from {video_name}")
 
 if __name__ == "__main__":
-    print("🚀 Running Batch Processing Pipeline on Real Videos...")
+    print("🚀 Running Batch Processing Pipeline on ALL Raw Videos...")
+    # Process Real Videos
     process_entire_folder("data/raw/real", "data/processed/real", max_frames_per_video=5)
+    # Process Fake Videos (Added!)
+    process_entire_folder("data/raw/fake", "data/processed/fake", max_frames_per_video=5)
