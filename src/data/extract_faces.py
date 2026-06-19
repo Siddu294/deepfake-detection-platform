@@ -12,7 +12,7 @@ def download_cascade_if_needed():
         urllib.request.urlretrieve(cascade_url, cascade_path)
     return cascade_path
 
-def process_entire_folder(input_folder, output_base_dir, max_frames_per_video=5):
+def process_entire_folder(input_folder, output_base_dir, max_frames_per_video=30):
     cascade_path = download_cascade_if_needed()
     face_cascade = cv2.CascadeClassifier(cascade_path)
     
@@ -70,6 +70,6 @@ def process_entire_folder(input_folder, output_base_dir, max_frames_per_video=5)
 if __name__ == "__main__":
     print("🚀 Running Batch Processing Pipeline on ALL Raw Videos...")
     # Process Real Videos
-    process_entire_folder("data/raw/real", "data/processed/real", max_frames_per_video=5)
+    process_entire_folder("data/raw/real", "data/processed/real", max_frames_per_video=30)
     # Process Fake Videos (Added!)
-    process_entire_folder("data/raw/fake", "data/processed/fake", max_frames_per_video=5)
+    process_entire_folder("data/raw/fake", "data/processed/fake", max_frames_per_video=30)

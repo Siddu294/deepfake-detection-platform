@@ -34,7 +34,7 @@ def train_model():
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     
-    epochs = 5
+    epochs = 15
     print(f"🏋️ Starting Training Loop for {epochs} Learning Epochs...")
     
     for epoch in range(epochs):
