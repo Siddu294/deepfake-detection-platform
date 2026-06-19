@@ -4,9 +4,12 @@ __pycache__/
 .pytest_cache/
 .DS_Store
 
-# Data and Models (We will track these with DVC later)
-data/
-models/
+# Ignore the data content folders explicitly, but allow .dvc files
+data/raw/
+data/processed/
+models/haarcascade_frontalface_default.xml
+
+# Ignore heavy model weights
 *.pt
 *.pth
 *.pkl
