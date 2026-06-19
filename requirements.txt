@@ -1,0 +1,13 @@
+torch
+torchvision
+opencv-python
+numpy
+pandas
+scikit-learn
+dvc
+mlflow
+fastapi
+uvicorn
+streamlit
+python-dotenv
+pyyaml

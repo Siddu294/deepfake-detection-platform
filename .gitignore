@@ -1,0 +1,12 @@
+venv/
+.env
+__pycache__/
+.pytest_cache/
+.DS_Store
+
+# Data and Models (We will track these with DVC later)
+data/
+models/
+*.pt
+*.pth
+*.pkl
