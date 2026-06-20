@@ -58,12 +58,23 @@ PREMIUM_UI_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta charset="UTF-8">
 <title>VERIS — AI Media Forensics Platform</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+@media (max-width: 768px) {
+  #view-app, .dashboard-layout, .kpi-grid, .viz-row { 
+    grid-template-columns: 1fr !important; 
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  .sidebar { width: 100% !important; padding: 15px !important; }
+  body { font-size: 14px; }
+  img { max-width: 100%; height: auto; }
+}
 :root{
   --bg-0:#05070D; --bg-1:#090D17; --panel:#0C1120; --panel-2:#10162A;
   --border:#1C2436; --border-soft:#161D2E; --cyan:#33D6F2; --cyan-dim:#1A8FA6;
