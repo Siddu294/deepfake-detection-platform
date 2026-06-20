@@ -1,75 +1,59 @@
 import cv2
 import os
-import glob
-import urllib.request
 
-def download_cascade_if_needed():
-    cascade_path = "models/haarcascade_frontalface_default.xml"
-    os.makedirs("models", exist_ok=True)
-    if not os.path.exists(cascade_path):
-        print("📥 Downloading Haar Cascade face detector weights...")
-        cascade_url = "https://raw.githubusercontent.com/opencv/opencv/master/data/haarcascades/haarcascade_frontalface_default.xml"
-        urllib.request.urlretrieve(cascade_url, cascade_path)
-    return cascade_path
-
-def process_entire_folder(input_folder, output_base_dir, max_frames_per_video=30):
-    cascade_path = download_cascade_if_needed()
-    face_cascade = cv2.CascadeClassifier(cascade_path)
+def extract_faces_from_videos():
+    print("🎞️ Beginning face extraction to a safe holding folder...")
     
-    video_files = glob.glob(os.path.join(input_folder, "*.mp4"))
-    print(f"📂 Found {len(video_files)} video(s) inside {input_folder}")
+    output_base = "data/extracted_faces"
+    os.makedirs(os.path.join(output_base, "real"), exist_ok=True)
+    os.makedirs(os.path.join(output_base, "fake"), exist_ok=True)
     
-    for video_path in video_files:
-        video_name = os.path.splitext(os.path.basename(video_path))[0]
-        video_output_dir = os.path.join(output_base_dir, video_name)
-        os.makedirs(video_output_dir, exist_ok=True)
-        
-        cap = cv2.VideoCapture(video_path)
-        if not cap.isOpened():
-            print(f"❌ Error: Cannot open {video_path}")
+    # CHANGED: Pointing directly to data/raw where real/ and fake/ subfolders live
+    video_root = "data/raw"
+    classes = ["real", "fake"]
+    
+    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+    
+    for cls in classes:
+        cls_dir = os.path.join(video_root, cls)
+        if not os.path.exists(cls_dir):
+            print(f"⚠️ Directory not found: {cls_dir}")
             continue
             
-        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        if total_frames <= 0:
-            total_frames = 100  # Fallback fallback for stream web videos
-        step = max(1, total_frames // max_frames_per_video)
+        videos = [f for f in os.listdir(cls_dir) if f.lower().endswith(('.mp4', '.avi', '.mkv'))]
+        print(f"🎬 Found {len(videos)} videos in class '{cls}'")
         
-        frame_count = 0
-        saved_count = 0
-        
-        print(f"🎞️ Extracting faces from: {video_name} ({total_frames} frames)")
-        
-        while cap.isOpened() and saved_count < max_frames_per_video:
-            ret, frame = cap.read()
-            if not ret:
-                break
-                
-            if frame_count % step == 0:
-                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                faces = face_cascade.detectMultiScale(gray, 1.1, 5, minSize=(40, 40))
-                
-                for idx, (x, y, w, h) in enumerate(faces):
-                    pad_h, pad_w = int(h * 0.1), int(w * 0.1)
-                    y1 = max(0, y - pad_h)
-                    y2 = min(frame.shape[0], y + h + pad_h)
-                    x1 = max(0, x - pad_w)
-                    x2 = min(frame.shape[1], x + w + pad_w)
-                    
-                    cropped = frame[y1:y2, x1:x2]
-                    output_filename = f"frame_{frame_count}_face_{idx}.jpg"
-                    cv2.imwrite(os.path.join(video_output_dir, output_filename), cropped)
-                    saved_count += 1
-                    
-                    if saved_count >= max_frames_per_video:
-                        break
-            frame_count += 1
+        for video_name in videos:
+            video_path = os.path.join(cls_dir, video_name)
+            cap = cv2.VideoCapture(video_path)
             
-        cap.release()
-        print(f"✅ Extracted {saved_count} face patch(es) from {video_name}")
+            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            if total_frames < 30:
+                continue
+                
+            interval = total_frames // 30
+            saved_count = 0
+            
+            for i in range(30):
+                cap.set(cv2.CAP_PROP_POS_FRAMES, i * interval)
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                    
+                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+                
+                if len(faces) > 0:
+                    x, y, w, h = faces[0]
+                    face_patch = frame[y:y+h, x:x+w]
+                    
+                    img_name = f"{os.path.splitext(video_name)[0]}_face_{saved_count}.jpg"
+                    out_path = os.path.join(output_base, cls, img_name)
+                    cv2.imwrite(out_path, face_patch)
+                    saved_count += 1
+            
+            cap.release()
+            print(f"✅ Extracted {saved_count} face patch(es) from {video_name}")
 
 if __name__ == "__main__":
-    print("🚀 Running Batch Processing Pipeline on ALL Raw Videos...")
-    # Process Real Videos
-    process_entire_folder("data/raw/real", "data/processed/real", max_frames_per_video=30)
-    # Process Fake Videos (Added!)
-    process_entire_folder("data/raw/fake", "data/processed/fake", max_frames_per_video=30)
+    extract_faces_from_videos()
