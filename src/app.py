@@ -24,7 +24,9 @@ model.fc = nn.Sequential(
     nn.Linear(num_features, 2)
 )
 
-model_path = "models/baseline_model.pth"
+# Dynamically find the project root directory path
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+model_path = os.path.join(BASE_DIR, "models", "baseline_model.pth")
 
 if os.path.exists(model_path):
     try:
