@@ -5,38 +5,33 @@ import torch
 import numpy as np
 import torch.nn as nn
 from flask import Flask, request, jsonify, render_template_string
-from torchvision import transforms
+from torchvision import transforms, models
 import base64
+
+# --- CRITICAL RAM OPTIMIZATION FOR RENDER FREE TIER ---
+torch.set_num_threads(1)
 
 app = Flask(__name__)
 
-# --- NEURAL NETWORK ARCHITECTURE BLUEPRINT ---
-class DeepfakeDetectorMatched(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.features = nn.Sequential(
-            nn.Conv2d(3, 16, kernel_size=3, padding=1), nn.ReLU(), nn.MaxPool2d(2, 2),
-            nn.Conv2d(16, 32, kernel_size=3, padding=1), nn.ReLU(), nn.MaxPool2d(2, 2),
-            nn.Conv2d(32, 64, kernel_size=3, padding=1), nn.ReLU(), nn.MaxPool2d(2, 2)
-        )
-        self.classifier = nn.Sequential(
-            nn.Linear(16384, 128), nn.ReLU(), nn.Dropout(0.5), nn.Linear(128, 2)
-        )
-    def forward(self, x):
-        return self.classifier(self.features(x).view(x.size(0), -1))
+# Initialize and Load Core Forensic Weights (ResNet50 Match)
+device = torch.device("cpu") # Force CPU to save footprint memory
 
-# Initialize and Load Core Forensic Weights
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = DeepfakeDetectorMatched()
+# Recreate your exact trained 93% accuracy ResNet50 framework structure
+model = models.resnet50()
+num_features = model.fc.in_features
+model.fc = nn.Sequential(
+    nn.Dropout(0.4),
+    nn.Linear(num_features, 2)
+)
+
 model_path = "models/baseline_model.pth"
 
 if os.path.exists(model_path):
     try:
+        # Load directly onto CPU memory tracking bounds
         state_dict = torch.load(model_path, map_location=device)
-        if "state_dict" in state_dict:
-            state_dict = state_dict["state_dict"]
         model.load_state_dict(state_dict)
-        print("🟢 CORE INFRASTRUCTURE: LIVE (Loaded baseline_model.pth)")
+        print("官方 NETWORK ONLINE: Loaded trained 93% accuracy ResNet50 weights successfully!")
     except Exception as e:
         print(f"⚠️ Checkpoint matching error: {e}. Running with uninitialized weights.")
 else:
@@ -45,15 +40,15 @@ else:
 model = model.to(device)
 model.eval()
 
-# Preprocessing Pipeline Transformations
+# Preprocessing Pipeline Transformations matching your training dimensions
 transform_pipeline = transforms.Compose([
     transforms.ToPILImage(),
-    transforms.Resize((128, 128)),
+    transforms.Resize((224, 224)), # Match ResNet50 input requirements
     transforms.ToTensor(),
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
 
-# --- READ AND EMBED THE FULL PREMIUM VERIS HTML CANVAS SYSTEM ---
+# --- PREMIUM VERIS HTML CANVAS SYSTEM ---
 PREMIUM_UI_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
@@ -61,7 +56,6 @@ PREMIUM_UI_TEMPLATE = """
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta charset="UTF-8">
 <title>VERIS — AI Media Forensics Platform</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -106,10 +100,7 @@ html,body{background:var(--bg-0); color:var(--text-0); font-family:var(--body); 
 .btn{display:inline-flex; align-items:center; gap:8px; border-radius:8px; font-weight:600; font-size:13.5px; padding:12px 22px; border:1px solid transparent; transition:all .18s; cursor:pointer;}
 .btn-primary{background:linear-gradient(100deg,var(--cyan),#5FB8E8); color:#04161C; box-shadow:0 8px 24px -8px rgba(51,214,242,.45);}
 .btn-primary:hover{transform:translateY(-1px); filter:brightness(1.05);}
-.btn-ghost{border-color:var(--border); color:var(--text-0); background:rgba(255,255,255,.02);}
-.btn-ghost:hover{border-color:var(--cyan-dim); background:rgba(51,214,242,.06);}
 
-/* WORKSPACE VIEW */
 #view-app{display:none; min-height:100vh; grid-template-columns:240px 1fr;}
 #view-app.active{display:grid;}
 .sidebar{background:var(--bg-1); border-right:1px solid var(--border-soft); padding:24px 16px; display:flex; flex-direction:column;}
@@ -131,27 +122,16 @@ html,body{background:var(--bg-0); color:var(--text-0); font-family:var(--body); 
 .kpi-label{font-family:var(--mono); font-size:11px; color:var(--text-2);}
 .kpi-val{font-family:var(--disp); font-size:26px; font-weight:700; margin-top:4px;}
 
-/* DASHBOARD LAYOUT */
 .dashboard-layout{display:grid; grid-template-columns:1.3fr 1fr; gap:20px;}
 .card{background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:24px;}
 .card-title{font-family:var(--disp); font-size:15px; font-weight:600; margin-bottom:18px;}
 
-/* UPLOAD REGION */
 .upload-zone{border:2px dashed var(--border); border-radius:12px; padding:48px 24px; text-align:center; background:rgba(12,17,32,.4); cursor:pointer; transition:all .2s;}
 .upload-zone:hover{border-color:var(--cyan); background:rgba(51,214,242,.02);}
 .upload-zone h3{font-size:16px; margin-bottom:6px; font-family:var(--disp);}
 .upload-zone p{color:var(--text-2); font-size:12.5px; margin-bottom:16px;}
 #fileInput{display:none;}
 
-/* FORENSIC TIMELINE PIPELINE */
-.pipeline-wrap{display:flex; flex-direction:column; gap:12px;}
-.pl-step{display:flex; align-items:center; gap:14px; padding:12px; background:var(--panel-2); border:1px solid var(--border-soft); border-radius:8px;}
-.pl-dot{width:24px; height:24px; border-radius:50%; border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:11px; font-family:var(--mono);}
-.pl-step.done .pl-dot{border-color:var(--green); color:var(--green); background:rgba(43,224,166,.05);}
-.pl-step.active .pl-dot{border-color:var(--cyan); color:var(--cyan); background:rgba(51,214,242,.1); animation:pulse 1.5s infinite;}
-@keyframes pulse{50%{opacity:0.5;}}
-
-/* REPORT PANELS */
 .report-container{margin-top:24px; display:grid; grid-template-columns:1fr; gap:20px;}
 .verdict-banner{display:flex; align-items:center; justify-content:space-between; padding:20px; border-radius:10px; margin-bottom:16px;}
 .verdict-banner.fake{background:rgba(255,69,97,.08); border:1px solid rgba(255,69,97,.3); color:var(--red);}
@@ -167,6 +147,13 @@ html,body{background:var(--bg-0); color:var(--text-0); font-family:var(--body); 
 .explain-card{background:var(--panel-2); border:1px solid var(--border-soft); border-radius:8px; padding:14px; margin-bottom:8px;}
 .explain-title{font-size:13px; font-weight:600; margin-bottom:4px;}
 .explain-desc{font-size:12px; color:var(--text-2); line-height:1.4;}
+
+.pipeline-wrap{display:flex; flex-direction:column; gap:12px;}
+.pl-step{display:flex; align-items:center; gap:14px; padding:12px; background:var(--panel-2); border:1px solid var(--border-soft); border-radius:8px;}
+.pl-dot{width:24px; height:24px; border-radius:50%; border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:11px; font-family:var(--mono);}
+.pl-step.done .pl-dot{border-color:var(--green); color:var(--green); background:rgba(43,224,166,.05);}
+.pl-step.active .pl-dot{border-color:var(--cyan); color:var(--cyan); background:rgba(51,214,242,.1); animation:pulse 1.5s infinite;}
+@keyframes pulse{50%{opacity:0.5;}}
 </style>
 </head>
 <body>
@@ -182,7 +169,7 @@ html,body{background:var(--bg-0); color:var(--text-0); font-family:var(--body); 
     <div class="hero-pill">VERIS INDUSTRIAL MEDIA FORENSICS ENGINE <b>v4.2</b></div>
     <h1 style="margin-top:20px;">Trust What You See.<br><span class="grad-text">Verify What You Watch.</span></h1>
     <p class="sub">Advanced deepfake intelligence and neural noise-signature maps optimized for high-risk validation environments.</p>
-    <button class="btn btn-primary btn-lg" style="font-size:15px; padding:14px 28px;" onclick="showAppView()">Start Forensic Investigation</button>
+    <button class="btn btn-primary" style="font-size:15px; padding:14px 28px;" onclick="showAppView()">Start Forensic Investigation</button>
   </header>
 </div>
 
@@ -209,9 +196,9 @@ html,body{background:var(--bg-0); color:var(--text-0); font-family:var(--body); 
 
       <div class="kpi-grid">
         <div class="kpi-card"><div class="kpi-label">EVALUATION SAMPLES</div><div class="kpi-val">18.4M</div></div>
-        <div class="kpi-card"><div class="kpi-label">DETECTION ACCURACY</div><div class="kpi-val">91.57%</div></div>
+        <div class="kpi-card"><div class="kpi-label">DETECTION ACCURACY</div><div class="kpi-val">93.00%</div></div>
         <div class="kpi-card"><div class="kpi-label">CORE INFRASTRUCTURE</div><div class="kpi-val" style="color:var(--green); font-size:18px; margin-top:10px;">CONNECTED</div></div>
-        <div class="kpi-card"><div class="kpi-label">TARGET MATRIX</div><div class="kpi-val">128×128</div></div>
+        <div class="kpi-card"><div class="kpi-label">TARGET MATRIX</div><div class="kpi-val">224×224</div></div>
       </div>
 
       <div class="dashboard-layout">
@@ -284,11 +271,9 @@ function handleFileUpload(event) {
   const file = event.target.files[0];
   if(!file) return;
 
-  // Reset display modules
   document.getElementById('report-zone').classList.add('hidden');
   document.getElementById('explanation-cards-box').innerHTML = '';
   
-  // Initialize step active classes
   updatePipelineStep(0, "Reading target frame parameters...", "active");
   updatePipelineStep(1, "Waiting for stream array...", "");
   updatePipelineStep(2, "Waiting for model pass...", "");
@@ -308,7 +293,6 @@ function handleFileUpload(event) {
       return;
     }
 
-    // Pipeline Telemetry Visual Updates
     setTimeout(() => {
       updatePipelineStep(0, "File parameters validated.", "done");
       updatePipelineStep(1, "Biometric landmarks and face patch extracted.", "active");
@@ -322,11 +306,8 @@ function handleFileUpload(event) {
     setTimeout(() => {
       updatePipelineStep(2, "Model tensor evaluations parsed.", "done");
       updatePipelineStep(3, "Calibrated diagnostics computed.", "done");
-      
-      // Render report targets
       renderReportMetrics(data);
     }, 1200);
-
   })
   .catch(err => {
     console.error(err);
@@ -343,32 +324,19 @@ function renderReportMetrics(data) {
   const noiseImg = document.getElementById('noise-preview-img');
   const explainBox = document.getElementById('explanation-cards-box');
 
-  // Populate preview image tags
   srcImg.src = data.source_image;
   noiseImg.src = data.noise_map;
-
-  // Render score calculation formatting
   pct.textContent = data.confidence.toFixed(2) + "%";
 
   if(data.prediction === "FAKE") {
     banner.className = "verdict-banner fake";
     txt.textContent = "🚨 VERDICT: Fake";
-    
-    if(data.confidence >= 72.0) {
-      explainBox.innerHTML = `
-        <div class="explain-card" style="border-left: 3px solid var(--red);">
-          <div class="explain-title" style="color:var(--red);">🚨 Synthetic Coherence Match</div>
-          <div class="explain-desc">High-confidence anomalies matching generative replacement signatures identified inside structural local face boundaries.</div>
-        </div>
-      `;
-    } else {
-      explainBox.innerHTML = `
-        <div class="explain-card" style="border-left: 3px solid var(--amber);">
-          <div class="explain-title" style="color:var(--amber);">⚠️ Heavy Artifact Degradation</div>
-          <div class="explain-desc">Inference bounds indicate edge block alterations. Often caused when severe platform re-saving mimicking generative edge boundaries.</div>
-        </div>
-      `;
-    }
+    explainBox.innerHTML = `
+      <div class="explain-card" style="border-left: 3px solid var(--red);">
+        <div class="explain-title" style="color:var(--red);">🚨 Synthetic Coherence Match</div>
+        <div class="explain-desc">High-confidence anomalies matching generative replacement signatures identified inside structural local face boundaries.</div>
+      </div>
+    `;
   } else {
     banner.className = "verdict-banner real";
     txt.textContent = "🛡️ VERDICT: Real";
@@ -379,8 +347,6 @@ function renderReportMetrics(data) {
       </div>
     `;
   }
-
-  // Display report layout element onto workspace
   reportZone.classList.remove('hidden');
 }
 </script>
@@ -403,7 +369,6 @@ def analyze_target_media():
         return jsonify({'error': 'No file selected'}), 400
 
     try:
-        # Convert file buffer directly into an OpenCV matrix image response
         file_bytes = np.frombuffer(file.read(), np.uint8)
         frame = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
         if frame is None:
@@ -415,7 +380,6 @@ def analyze_target_media():
         faces = face_cascade.detectMultiScale(gray, 1.3, 5)
 
         if len(faces) == 0:
-            # Fallback frame bounding parameters
             face_patch = frame
             laplacian = cv2.Laplacian(gray, cv2.CV_64F)
             heatmap = cv2.applyColorMap(np.uint8(np.absolute(laplacian)), cv2.COLORMAP_JET)
@@ -428,8 +392,10 @@ def analyze_target_media():
             heatmap = cv2.applyColorMap(edges, cv2.COLORMAP_TWILIGHT_SHIFTED)
             visual_blend = cv2.addWeighted(face_patch, 0.5, heatmap, 0.5, 0)
 
-        # Apply Neural Transformations and Evaluate Prediction Array
+        # Apply Neural Transformations matching optimized parameters
         input_tensor = transform_pipeline(cv2.cvtColor(face_patch, cv2.COLOR_BGR2RGB)).unsqueeze(0).to(device)
+        
+        # Explicitly evaluate without tracking gradient graph variables (Saves huge RAM)
         with torch.no_grad():
             outputs = model(input_tensor)
             probabilities = torch.softmax(outputs, dim=1)
@@ -438,7 +404,6 @@ def analyze_target_media():
         prediction_lbl = ["FAKE", "REAL"][predicted_idx.item()]
         confidence_val = confidence.item() * 100
 
-        # Encode matrices into base64 visual strings for the web view container
         _, src_buffer = cv2.imencode('.jpg', frame)
         _, noise_buffer = cv2.imencode('.jpg', visual_blend)
 
@@ -456,6 +421,5 @@ def analyze_target_media():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    # Render assigns a dynamic port via environment variables, defaulting to 10000
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port, debug=False)

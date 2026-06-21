@@ -1,13 +1,6 @@
-torch
-torchvision
-opencv-python
-numpy
-pandas
-scikit-learn
-dvc
-mlflow
-fastapi
-uvicorn
-streamlit
-python-dotenv
-pyyaml
+flask==3.0.2
+torch==2.2.1+cpu
+torchvision==0.17.1+cpu
+opencv-python-headless==4.9.0.80
+numpy==1.26.4
+--extra-index-url https://download.pytorch.org/whl/cpu
