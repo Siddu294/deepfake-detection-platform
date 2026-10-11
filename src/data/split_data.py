@@ -1,63 +1,74 @@
-import os
-import shutil
+"""Split extracted face images by source-video group to reduce leakage.
+
+Expected input: data/extracted_faces/{real,fake}/<video_stem>_face_<n>.jpg
+Output: data/processed/{train,val,test}/{real,fake}/...
+"""
+from collections import defaultdict
+from pathlib import Path
 import random
+import shutil
 
-def split_dataset():
-    print("✂️ Beginning dataset distribution split with 50/50 balance...")
-    
-    # Read from the safe holding directory
-    source_base = "data/extracted_faces"
-    processed_dir = "data/processed"
-    
-    real_faces_source = os.path.join(source_base, "real")
-    fake_faces_source = os.path.join(source_base, "fake")
-    
-    if not os.path.exists(real_faces_source) or not os.path.exists(fake_faces_source):
-        print("⚠️ No extracted faces found in data/extracted_faces/. Please run extraction first.")
-        return
-        
-    real_images = [os.path.join(real_faces_source, f) for f in os.listdir(real_faces_source) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
-    fake_images = [os.path.join(fake_faces_source, f) for f in os.listdir(fake_faces_source) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
-    
-    if len(real_images) == 0 or len(fake_images) == 0:
-        print(f"⚠️ Missing data! Real images: {len(real_images)}, Fake images: {len(fake_images)}")
-        return
+SEED = 42
+IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp"}
 
-    min_count = min(len(real_images), len(fake_images))
-    
-    random.shuffle(real_images)
-    random.shuffle(fake_images)
-    
-    balanced_real = real_images[:min_count]
-    balanced_fake = fake_images[:min_count]
-    
-    split_idx = int(min_count * 0.8)
-    
-    # Wipe and rebuild ONLY the processed directory safely
-    shutil.rmtree(processed_dir, ignore_errors=True)
-    
-    train_real_dir = os.path.join(processed_dir, "train", "real")
-    train_fake_dir = os.path.join(processed_dir, "train", "fake")
-    val_real_dir = os.path.join(processed_dir, "val", "real")
-    val_fake_dir = os.path.join(processed_dir, "val", "fake")
-    
-    for d in [train_real_dir, train_fake_dir, val_real_dir, val_fake_dir]:
-        os.makedirs(d, exist_ok=True)
-    
-    # Distribute balanced data safely
-    for img in balanced_real[:split_idx]:
-        shutil.copy(img, os.path.join(train_real_dir, os.path.basename(img)))
-    for img in balanced_real[split_idx:]:
-        shutil.copy(img, os.path.join(val_real_dir, os.path.basename(img)))
-        
-    for img in balanced_fake[:split_idx]:
-        shutil.copy(img, os.path.join(train_fake_dir, os.path.basename(img)))
-    for img in balanced_fake[split_idx:]:
-        shutil.copy(img, os.path.join(val_fake_dir, os.path.basename(img)))
-        
-    print(f"📊 Class 'real': Assigned {split_idx} images to Train, {min_count - split_idx} images to Val.")
-    print(f"📊 Class 'fake': Assigned {split_idx} images to Train, {min_count - split_idx} images to Val.")
-    print("✅ Dataset successfully balanced and distributed 50/50!")
+
+def source_group(path: Path) -> str:
+    # extract_faces.py names crops <original-video-stem>_face_<index>.jpg
+    stem = path.stem
+    marker = "_face_"
+    return stem.rsplit(marker, 1)[0] if marker in stem else stem
+
+
+def split_dataset(source_base="data/extracted_faces", output_base="data/processed", ratios=(0.8, 0.1, 0.1)):
+    if abs(sum(ratios) - 1.0) > 1e-8 or any(r < 0 for r in ratios):
+        raise ValueError("Split ratios must be non-negative and sum to 1.")
+    source = Path(source_base)
+    output = Path(output_base)
+    rng = random.Random(SEED)
+    class_groups = {}
+    for cls in ("fake", "real"):
+        folder = source / cls
+        if not folder.is_dir():
+            raise FileNotFoundError(f"Required extracted-face folder not found: {folder}")
+        groups = defaultdict(list)
+        for path in folder.iterdir():
+            if path.is_file() and path.suffix.lower() in IMAGE_EXTS:
+                groups[source_group(path)].append(path)
+        if not groups:
+            raise ValueError(f"No images found in {folder}")
+        keys = sorted(groups)
+        rng.shuffle(keys)
+        n = len(keys)
+        n_train = int(n * ratios[0])
+        n_val = int(n * ratios[1])
+        if n >= 3:
+            n_train = max(1, min(n_train, n - 2))
+            n_val = max(1, min(n_val, n - n_train - 1))
+        partitions = {
+            "train": keys[:n_train],
+            "val": keys[n_train:n_train + n_val],
+            "test": keys[n_train + n_val:],
+        }
+        class_groups[cls] = (groups, partitions)
+
+    # Rebuild only output_base after all inputs have been validated.
+    if output.exists():
+        shutil.rmtree(output)
+    counts = {}
+    for cls, (groups, partitions) in class_groups.items():
+        for split, group_keys in partitions.items():
+            target = output / split / cls
+            target.mkdir(parents=True, exist_ok=True)
+            copied = 0
+            for key in group_keys:
+                for src in groups[key]:
+                    shutil.copy2(src, target / src.name)
+                    copied += 1
+            counts[(split, cls)] = copied
+    for split in ("train", "val", "test"):
+        print(f"{split:5s} | fake={counts[(split, 'fake')]:5d} | real={counts[(split, 'real')]:5d}")
+    print(f"Split complete. Source groups were assigned together. Seed={SEED}")
+
 
 if __name__ == "__main__":
     split_dataset()

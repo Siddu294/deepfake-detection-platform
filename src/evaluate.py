@@ -1,69 +1,60 @@
-import os
-import sys
-import cv2
-import torch
-import torch.nn as nn
-import torchvision.transforms as transforms
-from PIL import Image
-from sklearn.metrics import confusion_matrix, classification_report
+"""Evaluate the trained checkpoint on a separate image test directory.
 
-# Force Python to locate modules in the root folder
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from train_advanced import UniversalDeepfakeDataset
+Expected structure: test_dataset/fake/* and test_dataset/real/*.
+Only images are evaluated here; video evaluation should use video-level labels
+and must ensure source videos are absent from training/validation.
+"""
+import argparse
+from pathlib import Path
+import numpy as np
+from PIL import Image, UnidentifiedImageError
+from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score
+from src.inference.predictor import DeepfakePredictor, IMAGE_EXTENSIONS
 
-# --- MATCHED ARCHITECTURE MAP ---
-def get_evaluation_model():
-    from torchvision import models
-    model = models.resnet50(weights=None)
-    num_features = model.fc.in_features
-    model.fc = nn.Sequential(
-        nn.Dropout(0.4),
-        nn.Linear(num_features, 2)
-    )
-    return model
 
-transform_pipeline = transforms.Compose([
-    transforms.Resize((256, 256)),
-    transforms.ToTensor(),
-    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-])
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data", default="test_dataset", help="Folder containing fake/ and real/ image subfolders")
+    parser.add_argument("--model", default="models/baseline_model.pth")
+    args = parser.parse_args()
+    root = Path(args.data)
+    samples = []
+    for class_name, label in (("fake", 0), ("real", 1)):
+        folder = root / class_name
+        if not folder.is_dir():
+            raise SystemExit(f"Missing class folder: {folder}")
+        for path in sorted(folder.iterdir()):
+            if path.is_file() and path.suffix.lower() in IMAGE_EXTENSIONS:
+                samples.append((path, label))
+    if not samples:
+        raise SystemExit(f"No supported image files found under {root}/fake and {root}/real")
+    predictor = DeepfakePredictor(args.model)
+    y_true, y_pred, fake_scores = [], [], []
+    skipped = 0
+    for path, label in samples:
+        try:
+            result = predictor.predict_image(path)
+        except (ValueError, OSError, UnidentifiedImageError) as exc:
+            print(f"Skipping unreadable file {path}: {exc}")
+            skipped += 1
+            continue
+        y_true.append(label)
+        y_pred.append(0 if result["prediction"] == "FAKE" else 1)
+        fake_scores.append(result["fake_probability"])
+    if not y_true:
+        raise SystemExit("No readable test images were evaluated.")
+    print(f"Evaluated: {len(y_true)} | Skipped: {skipped}")
+    print("Confusion matrix (rows=true [fake, real], columns=predicted [fake, real]):")
+    print(confusion_matrix(y_true, y_pred, labels=[0, 1]))
+    print(classification_report(y_true, y_pred, labels=[0, 1], target_names=["FAKE", "REAL"], zero_division=0, digits=4))
+    if len(set(y_true)) == 2:
+        try:
+            print(f"ROC-AUC (fake probability): {roc_auc_score(y_true, fake_scores):.4f}")
+        except ValueError as exc:
+            print(f"ROC-AUC unavailable: {exc}")
+    else:
+        print("ROC-AUC unavailable: the test set must contain both classes.")
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = get_evaluation_model().to(device)
-model_path = "models/baseline_model.pth"
 
-if os.path.exists(model_path):
-    model.load_state_dict(torch.load(model_path, map_location=device))
-    print("🟢 Successfully loaded trained ResNet50 keys!")
-else:
-    print(f"❌ Weight file not found at: {model_path}")
-    sys.exit(1)
-
-model.eval()
-
-dataset_path = "test_dataset" if os.path.exists("test_dataset") else "src/test_dataset"
-# Load ONLY the remaining 20% unseen data split
-test_dataset = UniversalDeepfakeDataset(base_dir=dataset_path, transform=transform_pipeline, is_train=False)
-
-true_labels, pred_labels = [], []
-print(f"⏳ Running inference over {len(test_dataset)} completely unseen validation items...")
-
-for idx in range(len(test_dataset)):
-    tensor, label = test_dataset[idx]
-    tensor = tensor.unsqueeze(0).to(device)
-    with torch.no_grad():
-        outputs = model(tensor)
-        _, predicted_idx = torch.max(outputs, dim=1)
-    
-    true_labels.append(label)
-    pred_labels.append(predicted_idx.item())
-
-if len(true_labels) > 0:
-    cm = confusion_matrix(true_labels, pred_labels, labels=[0, 1])
-    print("\n==========================================")
-    print("    🎉 UNSEEN TEST DATA CONFUSION MATRIX 🎉 ")
-    print("==========================================")
-    print(f"True Real Items: [ TN: {cm[1][1]} | FP: {cm[1][0]} ]")
-    print(f"True Deepfakes:  [ FN: {cm[0][1]} | TP: {cm[0][0]} ]")
-    print("------------------------------------------")
-    print(classification_report(true_labels, pred_labels, target_names=['FAKE', 'REAL'], zero_division=0))
+if __name__ == "__main__":
+    main()

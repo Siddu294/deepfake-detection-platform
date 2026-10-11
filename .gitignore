@@ -13,3 +13,29 @@ models/haarcascade_frontalface_default.xml
 *.pt
 *.pth
 *.pkl
+# Python virtual environments
+venv/
+.venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Local configuration and secrets
+.env
+.env.*
+
+# Logs and test artifacts
+*.log
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Generated model files
+*.pth
+*.pt
+*.pkl
+
+# Local uploads
+uploads/
